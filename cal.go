@@ -4,12 +4,6 @@ package cal
 
 import "time"
 
-// IsWeekend reports whether the given date falls on a weekend.
-func IsWeekend(date time.Time) bool {
-	day := date.Weekday()
-	return day == time.Saturday || day == time.Sunday
-}
-
 // IsWeekdayN reports whether the given date is the nth occurrence of the
 // day in the month.
 //
@@ -85,17 +79,25 @@ func JulianDate(t time.Time) float32 {
 		float32(utc.Minute())/1440.0 + float32(utc.Second())/86400.0
 }
 
+var (
+	WeekendSaturdaySunday = [7]bool{true, false, false, false, false, false, true}
+	WeekendSunday         = [7]bool{true, false, false, false, false, false, true}
+)
+
 // Calendar represents a yearly calendar with a list of holidays.
 type Calendar struct {
 	holidays [13][]Holiday // 0 for offset based holidays, 1-12 for month based
 	Observed ObservedRule
+	Weekend  [7]bool // indicies match time.Weekday constants (Sunday = 0, Monday = 1, ...)
 }
 
-// NewCalendar creates a new Calendar with no holidays defined.
+// NewCalendar creates a new Calendar with no holidays defined and weekends set to Saturday and Sunday.
 func NewCalendar() *Calendar {
 	c := &Calendar{}
 	for i := range c.holidays {
 		c.holidays[i] = make([]Holiday, 0, 2)
+		c.Weekend[time.Sunday] = true
+		c.Weekend[time.Saturday] = true
 	}
 	return c
 }
@@ -122,9 +124,14 @@ func (c *Calendar) IsHoliday(date time.Time) bool {
 	return false
 }
 
+// IsWeekend reports whether a given date is a weekend day
+func (c *Calendar) IsWeekend(date time.Time) bool {
+	return c.Weekend[date.Weekday()]
+}
+
 // IsWorkday reports whether a given date is a work day (business day).
 func (c *Calendar) IsWorkday(date time.Time) bool {
-	if IsWeekend(date) || c.IsHoliday(date) {
+	if c.IsWeekend(date) || c.IsHoliday(date) {
 		return false
 	}
 
